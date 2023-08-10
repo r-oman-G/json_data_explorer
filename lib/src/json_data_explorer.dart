@@ -8,9 +8,9 @@ import 'data_explorer_theme.dart';
 /// Signature for a function that creates a widget based on a
 /// [NodeViewModelState] state.
 typedef NodeBuilder = Widget Function(
-  BuildContext context,
-  NodeViewModelState node,
-);
+    BuildContext context,
+    NodeViewModelState node,
+    );
 
 /// Signature for a function that takes a generic value and converts it to a
 /// string.
@@ -23,9 +23,9 @@ typedef Formatter = String Function(dynamic value);
 /// See also:
 /// * [PropertyStyle]
 typedef StyleBuilder = PropertyOverrides Function(
-  dynamic value,
-  TextStyle style,
-);
+    dynamic value,
+    TextStyle style,
+    );
 
 /// Holds information about a property value style and interaction.
 class PropertyOverrides {
@@ -140,6 +140,15 @@ class JsonDataExplorer extends StatelessWidget {
   /// Sets the scroll physics of the list.
   final ScrollPhysics? physics;
 
+  /// {@template flutter.widgets.scroll_view.shrinkWrap}
+  /// Whether the extent of the scroll view in the [scrollDirection] should be
+  /// determined by the contents being viewed.
+  ///
+  ///  Defaults to false.
+  ///
+  /// See [ScrollView.shrinkWrap].
+  final bool shrinkWrap;
+
   const JsonDataExplorer({
     Key? key,
     required this.nodes,
@@ -154,38 +163,46 @@ class JsonDataExplorer extends StatelessWidget {
     this.valueStyleBuilder,
     this.itemSpacing = 2,
     this.physics,
+    this.shrinkWrap = false,
     DataExplorerTheme? theme,
-  })  : theme = theme ?? DataExplorerTheme.defaultTheme,
+  })
+      : theme = theme ?? DataExplorerTheme.defaultTheme,
         super(key: key);
 
   @override
-  Widget build(BuildContext context) => ScrollablePositionedList.builder(
+  Widget build(BuildContext context) =>
+      ScrollablePositionedList.builder(
         itemCount: nodes.length,
         itemScrollController: itemScrollController,
         itemPositionsListener: itemPositionsListener,
-        itemBuilder: (context, index) => AnimatedBuilder(
-          animation: nodes.elementAt(index),
-          builder: (context, child) => DecoratedBox(
-            decoration: BoxDecoration(
-              color: nodes.elementAt(index).isHighlighted
-                  ? theme.highlightColor
-                  : null,
+        itemBuilder: (context, index) =>
+            AnimatedBuilder(
+              animation: nodes.elementAt(index),
+              builder: (context, child) =>
+                  DecoratedBox(
+                    decoration: BoxDecoration(
+                      color: nodes
+                          .elementAt(index)
+                          .isHighlighted
+                          ? theme.highlightColor
+                          : null,
+                    ),
+                    child: child,
+                  ),
+              child: JsonAttribute(
+                node: nodes.elementAt(index),
+                rootInformationBuilder: rootInformationBuilder,
+                collapsableToggleBuilder: collapsableToggleBuilder,
+                trailingBuilder: trailingBuilder,
+                rootNameFormatter: rootNameFormatter,
+                propertyNameFormatter: propertyNameFormatter,
+                valueFormatter: valueFormatter,
+                valueStyleBuilder: valueStyleBuilder,
+                itemSpacing: itemSpacing,
+                theme: theme,
+              ),
             ),
-            child: child,
-          ),
-          child: JsonAttribute(
-            node: nodes.elementAt(index),
-            rootInformationBuilder: rootInformationBuilder,
-            collapsableToggleBuilder: collapsableToggleBuilder,
-            trailingBuilder: trailingBuilder,
-            rootNameFormatter: rootNameFormatter,
-            propertyNameFormatter: propertyNameFormatter,
-            valueFormatter: valueFormatter,
-            valueStyleBuilder: valueStyleBuilder,
-            itemSpacing: itemSpacing,
-            theme: theme,
-          ),
-        ),
+        shrinkWrap: this.shrinkWrap,
         physics: physics,
       );
 }
@@ -257,15 +274,15 @@ class JsonAttribute extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final searchTerm =
-        context.select<DataExplorerStore, String>((store) => store.searchTerm);
+    context.select<DataExplorerStore, String>((store) => store.searchTerm);
 
     final spacing = itemSpacing / 2;
 
     final valueStyle = valueStyleBuilder != null
         ? valueStyleBuilder!.call(
-            node.value,
-            theme.valueTextStyle,
-          )
+      node.value,
+      theme.valueTextStyle,
+    )
         : PropertyOverrides(style: theme.valueTextStyle);
 
     final hasInteraction = node.isRoot || valueStyle.onTap != null;
@@ -284,12 +301,12 @@ class JsonAttribute extends StatelessWidget {
         behavior: HitTestBehavior.opaque,
         onTap: hasInteraction
             ? () {
-                if (valueStyle.onTap != null) {
-                  valueStyle.onTap!.call();
-                } else {
-                  _onTap(context);
-                }
-              }
+          if (valueStyle.onTap != null) {
+            valueStyle.onTap!.call();
+          } else {
+            _onTap(context);
+          }
+        }
             : null,
         child: AnimatedBuilder(
           animation: node,
@@ -298,67 +315,68 @@ class JsonAttribute extends StatelessWidget {
           /// hit that we measured is ok for now. We will revisit this in the
           /// future if we fill that we need to improve the node rendering
           /// performance
-          builder: (context, child) => Stack(
-            children: [
-              IntrinsicHeight(
-                child: Row(
-                  crossAxisAlignment: node.isRoot
-                      ? CrossAxisAlignment.center
-                      : CrossAxisAlignment.start,
-                  children: [
-                    _Indentation(
-                      node: node,
-                      indentationPadding: theme.indentationPadding,
-                      propertyPaddingFactor:
+          builder: (context, child) =>
+              Stack(
+                children: [
+                  IntrinsicHeight(
+                    child: Row(
+                      crossAxisAlignment: node.isRoot
+                          ? CrossAxisAlignment.center
+                          : CrossAxisAlignment.start,
+                      children: [
+                        _Indentation(
+                          node: node,
+                          indentationPadding: theme.indentationPadding,
+                          propertyPaddingFactor:
                           theme.propertyIndentationPaddingFactor,
-                      lineColor: theme.indentationLineColor,
-                    ),
-                    if (node.isRoot)
-                      SizedBox(
-                        width: 24,
-                        child: collapsableToggleBuilder?.call(context, node) ??
-                            _defaultCollapsableToggleBuilder(context, node),
-                      ),
-                    Padding(
-                      padding: EdgeInsets.symmetric(vertical: spacing),
-                      child: _RootNodeWidget(
-                        node: node,
-                        rootNameFormatter: rootNameFormatter,
-                        propertyNameFormatter: propertyNameFormatter,
-                        searchTerm: searchTerm,
-                        theme: theme,
-                      ),
-                    ),
-                    const SizedBox(width: 4),
-                    if (node.isRoot)
-                      rootInformationBuilder?.call(context, node) ??
-                          const SizedBox()
-                    else
-                      Expanded(
-                        child: Padding(
+                          lineColor: theme.indentationLineColor,
+                        ),
+                        if (node.isRoot)
+                          SizedBox(
+                            width: 24,
+                            child: collapsableToggleBuilder?.call(context, node) ??
+                                _defaultCollapsableToggleBuilder(context, node),
+                          ),
+                        Padding(
                           padding: EdgeInsets.symmetric(vertical: spacing),
-                          child: _PropertyNodeWidget(
+                          child: _RootNodeWidget(
                             node: node,
+                            rootNameFormatter: rootNameFormatter,
+                            propertyNameFormatter: propertyNameFormatter,
                             searchTerm: searchTerm,
-                            valueFormatter: valueFormatter,
-                            style: valueStyle.style,
-                            searchHighlightStyle:
-                                theme.valueSearchHighlightTextStyle,
-                            focusedSearchHighlightStyle:
-                                theme.focusedValueSearchHighlightTextStyle,
+                            theme: theme,
                           ),
                         ),
-                      ),
-                  ],
-                ),
+                        const SizedBox(width: 4),
+                        if (node.isRoot)
+                          rootInformationBuilder?.call(context, node) ??
+                              const SizedBox()
+                        else
+                          Expanded(
+                            child: Padding(
+                              padding: EdgeInsets.symmetric(vertical: spacing),
+                              child: _PropertyNodeWidget(
+                                node: node,
+                                searchTerm: searchTerm,
+                                valueFormatter: valueFormatter,
+                                style: valueStyle.style,
+                                searchHighlightStyle:
+                                theme.valueSearchHighlightTextStyle,
+                                focusedSearchHighlightStyle:
+                                theme.focusedValueSearchHighlightTextStyle,
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                  if (trailingBuilder != null)
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: trailingBuilder!.call(context, node),
+                    ),
+                ],
               ),
-              if (trailingBuilder != null)
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: trailingBuilder!.call(context, node),
-                ),
-            ],
-          ),
         ),
       ),
     );
@@ -382,17 +400,15 @@ class JsonAttribute extends StatelessWidget {
   ///
   /// A material [Icons.arrow_right] is displayed for collapsed nodes and
   /// [Icons.arrow_drop_down] for expanded nodes.
-  static Widget _defaultCollapsableToggleBuilder(
-    BuildContext context,
-    NodeViewModelState node,
-  ) =>
+  static Widget _defaultCollapsableToggleBuilder(BuildContext context,
+      NodeViewModelState node,) =>
       node.isCollapsed
           ? const Icon(
-              Icons.arrow_right,
-            )
+        Icons.arrow_right,
+      )
           : const Icon(
-              Icons.arrow_drop_down,
-            );
+        Icons.arrow_drop_down,
+      );
 }
 
 /// A [Widget] that renders a node that can be a class or a list.
@@ -440,11 +456,11 @@ class _RootNodeWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final showHighlightedText = context.select<DataExplorerStore, bool>(
-      (store) => store.searchResults.isNotEmpty,
+          (store) => store.searchResults.isNotEmpty,
     );
 
     final attributeKeyStyle =
-        node.isRoot ? theme.rootKeyTextStyle : theme.propertyKeyTextStyle;
+    node.isRoot ? theme.rootKeyTextStyle : theme.propertyKeyTextStyle;
 
     final text = _keyName();
 
@@ -453,7 +469,7 @@ class _RootNodeWidget extends StatelessWidget {
     }
 
     final focusedSearchMatchIndex =
-        context.select<DataExplorerStore, int?>(_getFocusedSearchMatchIndex);
+    context.select<DataExplorerStore, int?>(_getFocusedSearchMatchIndex);
 
     return _HighlightedText(
       text: text,
@@ -506,7 +522,7 @@ class _PropertyNodeWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final showHighlightedText = context.select<DataExplorerStore, bool>(
-      (store) => store.searchResults.isNotEmpty,
+          (store) => store.searchResults.isNotEmpty,
     );
 
     final text = valueFormatter?.call(node.value) ?? node.value.toString();
@@ -516,7 +532,7 @@ class _PropertyNodeWidget extends StatelessWidget {
     }
 
     final focusedSearchMatchIndex =
-        context.select<DataExplorerStore, int?>(_getFocusedSearchMatchIndex);
+    context.select<DataExplorerStore, int?>(_getFocusedSearchMatchIndex);
 
     return _HighlightedText(
       text: text,
